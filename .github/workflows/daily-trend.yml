@@ -16,8 +16,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - run: pip install requests
-      - name: 抓取当日 GitHub Trending 并落盘
+      - name: 抓取当日 GitHub 趋势并落盘
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}   # 提升 Search API 限额
         run: |
           mkdir -p trends
           python github_trending.py > "trends/$(date +%Y-%m-%d).md"
