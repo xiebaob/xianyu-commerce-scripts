@@ -1,0 +1,39 @@
+{
+  "_说明": "仓捷运 · 履约输入模板。复制成 orders.json 填真数据，再跑 python fulfill_plan.py --input orders.json。所有字段都可以留空，脚本会标占位而不是瞎猜。",
+  "_必填": "orders[].order_id / orders[].sku / orders[].qty；stock[].sku / stock[].on_hand",
+  "_建议填": "orders[].paid_at（没有它算不出 48 小时倒计时）、orders[].province、orders[].weight_kg（没有它算不出运费）",
+  "_可选填": "stock[].sold_7d（没有它算不出可售天数）、stock[].safety、stock[].in_transit、stock[].loc、orders[].tracking（填了就算已交寄）",
+
+  "shop": "你的店铺名",
+  "orders": [
+    {
+      "order_id": "XY20261111001",
+      "sku": "二手 Switch OLED 掌机 白色",
+      "qty": 1,
+      "paid_at": "2026-11-11 09:20",
+      "province": "广东",
+      "city": "深圳",
+      "address": "南山区科技园XX路X号",
+      "buyer": "买家昵称",
+      "amount": 1799,
+      "weight_kg": 1.2,
+      "note": "买家备注 / 你的备注，会参与时效词自查",
+      "photos": true,
+      "tracking": "",
+      "shipped_at": ""
+    }
+  ],
+
+  "stock": [
+    {
+      "sku": "二手 Switch OLED 掌机 白色",
+      "on_hand": 3,
+      "safety": 2,
+      "in_transit": 2,
+      "eta_days": 3,
+      "sold_7d": 6,
+      "loc": "A-03",
+      "cost": 1400
+    }
+  ]
+}
