@@ -13,9 +13,9 @@ selection_scorer.py — 闲鱼选品评分器（甄选品核心工具）
 决策门槛： >=75 强烈推荐 | 60-74 可以上架 | <60 谨慎/放弃
 
 用法：
-    python3 selection_scorer.py                 # 跑内置本周候选
-    python3 selection_scorer.py candidates.json  # 跑自定义 JSON
-    python3 selection_scorer.py --json out.json  # 同时导出 JSON
+    python3 selection_scorer.py candidates.json      # 跑真实候选（推荐）
+    python3 selection_scorer.py                      # 无参=跑内置样例（演示用，会打警告）
+    python3 selection_scorer.py --out ranked.json    # 同时导出 JSON
 """
 
 import argparse
@@ -24,7 +24,8 @@ import sys
 
 WEIGHTS = {"demand": 0.35, "comp_favor": 0.25, "profit": 0.25, "risk_favor": 0.15}
 
-# —— 本周候选（信号源：2026-11-10 GitHub Trending 技术消费趋势 + 报告常青品类）——
+# —— 内置样例候选（仅演示，非真实市场数据）——
+# 真实使用时请把本周候选填入 candidates.json 再作为第一个参数传入。
 # signal 标注来源：GH=GitHub趋势新增信号；RPT=报告常青品类
 CANDIDATES = [
     {"sku": "二手迷你主机/准系统", "cat": "本地大模型算力", "signal": "GH",
@@ -59,8 +60,10 @@ CANDIDATES = [
      "note": "报告常青：走量压舱石、风险低"},
 ]
 
+REQUIRED_FIELDS = ["sku", "signal"] + list(WEIGHTS.keys())
 
-def score(c: dict) -> dict:
+
+def score(c):
     s = sum(WEIGHTS[k] * c[k] for k in WEIGHTS)
     c["score"] = round(s, 1)
     c["decision"] = ("强烈推荐" if s >= 75 else
@@ -70,38 +73,56 @@ def score(c: dict) -> dict:
 
 def main():
     ap = argparse.ArgumentParser(description="闲鱼选品评分器")
-    ap.add_argument("input", nargs="?", help="候选 JSON 文件（默认用内置本周候选）")
+    ap.add_argument("input", nargs="?", help="候选 JSON 文件（缺省时用内置样例）")
     ap.add_argument("--out", help="导出评分结果 JSON 路径")
     args = ap.parse_args()
 
+    using_demo = args.input is None
     cands = CANDIDATES
     if args.input:
         try:
-            cands = json.load(open(args.input, encoding="utf-8"))
+            with open(args.input, encoding="utf-8") as f:
+                cands = json.load(f)
         except Exception as e:
-            print(f"[ERR] 读取 {args.input} 失败: {e}")
+            print("[ERR] 读取 %s 失败: %s" % (args.input, e))
             sys.exit(1)
+
+    # 字段校验，避免打分时 KeyError
+    for i, c in enumerate(cands):
+        miss = [k for k in REQUIRED_FIELDS if k not in c]
+        if miss:
+            print("[ERR] 第 %d 条候选缺字段 %s，请参考 candidates.template.json" % (i + 1, miss))
+            sys.exit(1)
+
+    if using_demo:
+        print("=" * 78)
+        print("⚠️  [样例数据] 未提供 candidates.json，当前输出为脚本内置示例，非真实选品结论。")
+        print("    真实用法：把本周候选填入 candidates.json，再执行")
+        print("             python selection_scorer.py candidates.json")
+        print("=" * 78)
 
     ranked = sorted((score(dict(c)) for c in cands), key=lambda x: -x["score"])
 
     print("=" * 78)
-    print(f"闲鱼选品评分 · 本周候选 {len(ranked)} 项（综合分=0.35需求+0.25竞争+0.25利润+0.15风险）")
+    print("闲鱼选品评分 · 候选 %d 项（综合分=0.35需求+0.25竞争+0.25利润+0.15风险）"
+          % len(ranked))
     print("=" * 78)
-    print(f"{'排名':<4}{'SKU':<16}{'信号':<5}{'需求':<5}{'竞争':<5}{'利润':<5}{'风险':<5}{'综合':<7}{'决策'}")
+    print("%-4s%-16s%-5s%-5s%-5s%-5s%-5s%-7s%s"
+          % ("排名", "SKU", "信号", "需求", "竞争", "利润", "风险", "综合", "决策"))
     print("-" * 78)
     for i, c in enumerate(ranked, 1):
-        print(f"{i:<4}{c['sku']:<14}{c['signal']:<5}{c['demand']:<5}"
-              f"{c['comp_favor']:<5}{c['profit']:<5}{c['risk_favor']:<5}"
-              f"{c['score']:<7}{c['decision']}")
+        print("%-4d%-16s%-5s%-5d%-5d%-5d%-5d%-7s%s"
+              % (i, c["sku"], c["signal"], c["demand"], c["comp_favor"],
+                 c["profit"], c["risk_favor"], c["score"], c["decision"]))
     print("-" * 78)
     gh = [c for c in ranked if c["signal"] == "GH"]
-    print(f"GitHub 趋势新增信号 {len(gh)} 项：" + "、".join(c["sku"] for c in gh))
+    print("GitHub 趋势新增信号 %d 项：%s" % (len(gh), "、".join(c["sku"] for c in gh)))
     print("=" * 78)
 
     if args.out:
-        json.dump(ranked, open(args.out, "w", encoding="utf-8"),
-                  ensure_ascii=False, indent=2)
-        print(f"[OK] 已导出 JSON → {args.out}")
+        with open(args.out, "w", encoding="utf-8") as f:
+            json.dump(ranked, f, ensure_ascii=False, indent=2)
+        print("[OK] 已导出 JSON → %s" % args.out)
 
 
 if __name__ == "__main__":
