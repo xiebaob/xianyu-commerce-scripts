@@ -1,0 +1,96 @@
+{
+  "params": {
+    "buyer_ship_fee": 8,
+    "stock_days": 7,
+    "daily_orders": 2,
+    "target_margin": 0.25
+  },
+  "suppliers": [
+    {
+      "sku": "USB-C 氮化镓充电器 65W",
+      "cost": 38.5,
+      "ship_fee": 6,
+      "return_rate": 4.5,
+      "moq": 2,
+      "lead_days": 3,
+      "stock": 400,
+      "supports_onepiece": true,
+      "supplier": "东莞某厂",
+      "cert_3c": true,
+      "invoice": true,
+      "image_authorized": false,
+      "listing_price": 79
+    },
+    {
+      "sku": "桌面收纳盒 单个装",
+      "cost": 12.8,
+      "ship_fee": 5,
+      "return_rate": 6,
+      "moq": 10,
+      "lead_days": 2,
+      "stock": 900,
+      "supports_onepiece": false,
+      "supplier": "义乌档口",
+      "invoice": false,
+      "image_authorized": false,
+      "listing_price": 39,
+      "bundle": {
+        "name": "桌面收纳套装",
+        "items": "收纳盒 + 笔筒 + 线缆收纳 + 桌垫",
+        "cost": 26,
+        "price": 59,
+        "single_price": 39
+      }
+    },
+    {
+      "sku": "便携小风扇 USB 静音",
+      "cost": 16.5,
+      "ship_fee": 7,
+      "return_rate": 11,
+      "moq": 5,
+      "lead_days": 6,
+      "stock": 60,
+      "supports_onepiece": true,
+      "supplier": "中山厂家",
+      "cert_3c": false,
+      "invoice": true
+    },
+    {
+      "sku": "显示器增高架铝合金",
+      "cost": 21,
+      "ship_fee": 6,
+      "return_rate": 3,
+      "moq": 1,
+      "lead_days": 2,
+      "stock": 260,
+      "supports_onepiece": true,
+      "supplier": "东莞",
+      "invoice": true,
+      "image_authorized": false,
+      "listing_price": 49
+    },
+    {
+      "sku": "车载手机支架 出风口款",
+      "cost": 4.2,
+      "ship_fee": 4,
+      "return_rate": 5,
+      "moq": 50,
+      "lead_days": 1,
+      "stock": 2000,
+      "supports_onepiece": false,
+      "supplier": "深圳配件厂",
+      "invoice": true
+    },
+    {
+      "sku": "折叠收纳凳 承重 150kg",
+      "cost": 26,
+      "return_rate": 8,
+      "supplier": "佛山家具厂"
+    },
+    {
+      "sku": "旅行收纳袋 三件套",
+      "cost": 9.6,
+      "supplier": "义乌"
+    }
+  ]
+}
