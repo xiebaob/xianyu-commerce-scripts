@@ -1,0 +1,60 @@
+{
+  "_说明": "拾货源 · 1688 货源录入模板。复制成 sourcing.json 后按真实数据填。带 _ 开头的键是说明，填完可以删。",
+  "_必填": "每个货源必填：sku / cost / return_rate。这三项缺任意一项，该条不参与算账，只在总览里显示占位。",
+  "_建议填": "强烈建议填：ship_fee / moq / lead_days / stock / supports_onepiece / supplier。这六项决定「做不做」判定。",
+  "_可选填": "supplier 供应商名；cert_3c 是否 3C 认证（充电器/电器/灯具类必填，true/false）；invoice 是否开票；image_authorized 图片是否可用（false=必须自己重拍）；listing_price 你打算挂的价格（不填就由脚本倒推）；bundle 组合装数据；cat 手工指定品类（不填由脚本自动判定）",
+
+  "params": {
+    "_注释": "params 是全局参数，不填就用规则库默认值",
+    "buyer_ship_fee": 8,
+    "_buyer_ship_fee": "闲鱼发到买家的单件运费。偏远件要自己加权",
+    "stock_days": 7,
+    "_stock_days": "备货天数。资金占用与断货预警都按它算",
+    "daily_orders": 2,
+    "_daily_orders": "该货源日均出单量，用来算建议备货量。填 0 就只按起批量算",
+    "target_margin": 0.25,
+    "_target_margin": "目标净毛利率，0.25 = 25%。倒推最低挂价用这个数"
+  },
+
+  "suppliers": [
+    {
+      "sku": "USB-C 氮化镓充电器 65W",
+      "cost": 38.5,
+      "_cost": "1688 单件拿货价（不含运费）",
+      "ship_fee": 6,
+      "_ship_fee": "1688 发到你、或一件代发到买家的运费",
+      "return_rate": 4.5,
+      "_return_rate": "退货率百分比。问供应商要历史数据，没有就按品类估并注明",
+      "moq": 2,
+      "_moq": "起批量件数。> 5 且不支持一件代发 = 直接否",
+      "lead_days": 3,
+      "_lead_days": "发货时效天数。> 4 天必定破 48 小时承诺",
+      "stock": 400,
+      "_stock": "供货商当前库存量",
+      "supports_onepiece": true,
+      "_supports_onepiece": "是否支持一件代发",
+      "supplier": "东莞某厂",
+      "cert_3c": true,
+      "_cert_3c": "是否 3C 认证。充电器/移动电源/电器/灯具类必填，null=未确认（会被一票否决）",
+      "invoice": true,
+      "_invoice": "是否可开票",
+      "image_authorized": false,
+      "_image_authorized": "图片能否商用。false 或不填都要自己实拍",
+      "listing_price": 79,
+      "_listing_price": "你打算挂的闲鱼价。不填则由脚本按目标净利率倒推最低可行价",
+      "cat": "",
+      "_cat": "手工指定品类名（与 sourcing_rules.json 的 categories 一致）。留空由脚本自动判定",
+      "bundle": {
+        "_注释": "组合装：把这个单品并进套装后的账。组合是全新小件在闲鱼唯一的活法",
+        "name": "桌面收纳套装",
+        "items": "收纳盒 + 笔筒 + 线缆收纳 + 桌垫",
+        "cost": 26,
+        "_cost": "整套拿货成本（各件合计）",
+        "price": 59,
+        "_price": "整套在闲鱼的挂价",
+        "single_price": 39,
+        "_single_price": "单卖时的挂价，用来算客单价提升倍数"
+      }
+    }
+  ]
+}
