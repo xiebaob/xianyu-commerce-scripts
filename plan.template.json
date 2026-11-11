@@ -1,0 +1,34 @@
+{
+  "_说明": "许达标 · 运营计划输入模板。复制成 plan.json 填真数据，再跑 python ops_plan.py --input plan.json。缺哪个字段脚本就标占位，不替你估。",
+  "_必填": "goal.gmv（或 goal.orders）+ current.aov",
+  "_建议填": "current.exposure_day / ctr / consult_rate / deal_rate（四项齐了才能倒推曝光缺口）",
+  "_可选填": "skus（有它才能出 SKU 处置表）、metrics（有它才能判断预警是否触线）",
+
+  "month": "2026-11",
+  "days": 30,
+
+  "goal": {
+    "gmv": 30000,
+    "profit": 6000,
+    "orders": null
+  },
+
+  "current": {
+    "aov": 400,
+    "exposure_day": 8000,
+    "ctr": 1.8,
+    "consult_rate": 5.0,
+    "deal_rate": 12.0
+  },
+
+  "skus": [
+    {"sku": "商品名", "days_live": 12, "sold_7d": 3, "stock": 3}
+  ],
+
+  "metrics": {
+    "zero_sales_days": 0,
+    "bad_review_rate": 1.2,
+    "late_ship": 0,
+    "low_stock": 0
+  }
+}
