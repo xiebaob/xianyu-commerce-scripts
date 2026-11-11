@@ -1,0 +1,128 @@
+{
+  "shop": "小周的闲鱼店（示例）",
+  "orders": [
+    {
+      "order_id": "XY20261111001",
+      "sku": "二手 Switch OLED 掌机 白色",
+      "qty": 1,
+      "paid_at": "2026-11-11 09:20",
+      "province": "广东",
+      "city": "深圳",
+      "address": "南山区科技园XX路X号",
+      "amount": 1799,
+      "weight_kg": 1.2,
+      "note": "买家问周末前能不能到"
+    },
+    {
+      "order_id": "XY20261111002",
+      "sku": "iPhone 13 128G 午夜色",
+      "qty": 1,
+      "paid_at": "2026-11-10 18:40",
+      "province": "江苏",
+      "city": "南京",
+      "address": "鼓楼区XX街道X号",
+      "amount": 2299,
+      "weight_kg": 0.5,
+      "note": "上班时间送，别打太多电话"
+    },
+    {
+      "order_id": "XY20261111003",
+      "sku": "罗技 MX Master 3S 鼠标",
+      "qty": 2,
+      "paid_at": "2026-11-11 15:05",
+      "province": "新疆",
+      "city": "乌鲁木齐",
+      "amount": 429,
+      "weight_kg": 0.6,
+      "note": ""
+    },
+    {
+      "order_id": "XY20261111004",
+      "sku": "小米空气炸锅 4L",
+      "qty": 1,
+      "paid_at": "2026-11-11 20:30",
+      "province": "",
+      "city": "",
+      "amount": 219,
+      "weight_kg": 4.8,
+      "note": "地址只给了「XX小区菜鸟驿站」"
+    },
+    {
+      "order_id": "XY20261110007",
+      "sku": "二手 Kindle Paperwhite 5 8G",
+      "qty": 1,
+      "paid_at": "2026-11-09 21:10",
+      "province": "四川",
+      "city": "成都",
+      "address": "武侯区XX路X号",
+      "amount": 429,
+      "weight_kg": 0.4,
+      "note": "拍了没发，买家已问过一次"
+    },
+    {
+      "order_id": "XY20261110009",
+      "sku": "罗技 MX Master 3S 鼠标",
+      "qty": 1,
+      "paid_at": "2026-11-10 10:10",
+      "province": "浙江",
+      "city": "杭州",
+      "amount": 219,
+      "weight_kg": 0.6,
+      "note": "",
+      "tracking": "7731XXXXXXXXX",
+      "shipped_at": "2026-11-10 18:30"
+    }
+  ],
+  "stock": [
+    {
+      "sku": "二手 Switch OLED 掌机 白色",
+      "on_hand": 3,
+      "safety": 2,
+      "in_transit": 2,
+      "eta_days": 3,
+      "sold_7d": 6,
+      "loc": "A-03",
+      "cost": 1400
+    },
+    {
+      "sku": "iPhone 13 128G 午夜色",
+      "on_hand": 2,
+      "safety": 1,
+      "in_transit": 1,
+      "eta_days": 2,
+      "sold_7d": 3,
+      "loc": "C-01",
+      "cost": 2050
+    },
+    {
+      "sku": "罗技 MX Master 3S 鼠标",
+      "on_hand": 2,
+      "safety": 2,
+      "in_transit": 0,
+      "eta_days": null,
+      "sold_7d": 5,
+      "loc": "B-11",
+      "cost": 320
+    },
+    {
+      "sku": "小米空气炸锅 4L",
+      "on_hand": 0,
+      "safety": 1,
+      "in_transit": 4,
+      "eta_days": 2,
+      "sold_7d": 9,
+      "loc": "D-07",
+      "cost": 160
+    },
+    {
+      "sku": "二手 Kindle Paperwhite 5 8G",
+      "on_hand": 2,
+      "safety": 1,
+      "in_transit": 0,
+      "eta_days": null,
+      "sold_7d": 2,
+      "loc": "A-06",
+      "cost": 330
+    }
+  ]
+}
