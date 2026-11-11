@@ -14,6 +14,7 @@
 | `selection_brief.py` | 甄选品 | 汇总趋势信号 + 评分排名，生成每周选品简报 Markdown（可接定时任务） |
 | `dashboard.py` | 数明察 | 经营漏斗看板 + 周报，对齐 SOP 标准（点击率 ≥2% / 咨询率 ≥6% / 成交率 ≥15%）自动定位瓶颈 |
 | `design_brief.py` | 图玲珑 | 设计需求一键出稿：定价锚点 + 主图文案 + 拍摄清单 + 详情页 4 屏 + 短视频分镜 + 违规自查 |
+| `design_render.py` | 图玲珑 | **出图器**：读候选直接渲出 3 套 1080×1080 主图 + 1080 宽详情页长图，调本机 Edge 截图，无需手工改字 |
 
 ## 目录结构
 
@@ -25,6 +26,7 @@ xianyu-commerce-scripts/
 ├── selection_brief.py             # 周简报生成
 ├── dashboard.py                   # 经营漏斗看板
 ├── design_brief.py                # 设计需求出稿（图玲珑）
+├── design_render.py               # 出图器：主图 ×3 + 详情页长图（图玲珑）
 ├── design_rules.json              # 设计规则库：违规词 / 品类必拍项 / 版式参数
 ├── 图玲珑SOP.md                    # 视觉设计 SOP（主图 / 详情页 / 合规红线）
 ├── 数据录入说明.md                  # 甄选品周更 SOP
@@ -35,7 +37,12 @@ xianyu-commerce-scripts/
 │   ├── ranked.example.json        # selection_scorer 输出
 │   ├── weekly_report.example.md   # dashboard 输出
 │   ├── brief.example.md           # selection_brief 输出
-│   └── design_brief.example.md    # design_brief 输出
+│   ├── design_brief.example.md    # design_brief 输出
+│   └── design_render/             # design_render 真实产物（1 个 SKU × 4 张）
+│       ├── main_A.png             # 左图右文版式
+│       ├── main_B.png             # 大图压价格条
+│       ├── main_C.png             # 三卖点堆叠
+│       └── detail.png             # 详情页 4 屏长图
 └── .github/
     ├── workflows/                 # 自动化（见「自动化」章节）
     │   ├── daily-trend.yml        # 每天 09:00 抓趋势
@@ -66,6 +73,9 @@ python selection_brief.py --out brief.md
 
 # 4) 给选中的 SKU 出设计稿
 python design_brief.py --input candidates.json --out design_brief.md
+
+# 5) 直接出图（需本机 Edge/Chrome；没装可加 --no-shot 只出 HTML）
+python design_render.py --input candidates.json --outdir renders
 ```
 
 ---
@@ -110,10 +120,36 @@ python design_brief.py --input candidates.json --out design_brief.md
   python design_brief.py --check "全网最低价 加微信详聊"
   ```
   🔴 硬违规（绝对化用语 / 站外引流 / 禁售侵权）必须改；🟡 需与实物核对（成色 / 售后承诺）
-- **出图**：`templates/主图版式.html` 浏览器打开 → 点文字改 → 切 100% 截图（1080×1080）
+- **出图（手工）**：`templates/主图版式.html` 浏览器打开 → 点文字改 → 切 100% 截图（1080×1080）
 - **规则在 `design_rules.json`**：违规词、品类必拍项、版式参数全在这里，改口径只改 JSON
 
 > ⚠️ 脚本只给**结构与骨架**，所有 `【】` 占位符必须对着实物填。它不会替你编成色、配置、瑕疵——二手交易里一句编造描述就是一次纠纷。
+
+### 6. `design_render.py` — 出图器（图玲珑）
+把上一步的文案直接渲成图，省掉手工改字截图。
+
+- **输入**：`--input candidates.json`（与评分器同一份）或单件 `--sku ... --cond ... --price ... --points ...`
+- **输出**：每个 SKU 一个目录，含 3 套主图 + 详情页长图（PNG + 同源 HTML）
+  ```bash
+  python design_render.py --input candidates.json --outdir renders
+  python design_render.py --sku "二手 Switch OLED 掌机" --cond 95新 --price 1799 \
+      --points "港版 含底座" --points "无拆修" --outdir renders
+  ```
+- **3 套主图版式**（都是 1080×1080，平台要求 1:1）：
+
+  | 版式 | 结构 | 适合 |
+  |---|---|---|
+  | `main_A` | 左实拍 + 右成色/型号/副标/黄色价格牌/角标 | 有明确型号与成色的机器类，信息最全 |
+  | `main_B` | 大图满幅 + 底部黄色价格条 | 缩略图最抢眼，走量款 |
+  | `main_C` | 上图 + 白卡型号/价格 + 三卖点标签 | 靠配置差异说服的品类 |
+
+- **详情页**：4 屏拼成 1080×约3300–3800 长图，第 1、3 屏带整条配图位，末屏自动附「必须写清」清单
+- **实拍图自动嵌入**：把照片放成 `photos/<SKU名>.jpg`，加 `--photos photos` 重跑即可；没有照片就留虚线占位框
+- **依赖**：仅标准库 + 本机 Edge/Chrome 无头截图。找不到浏览器时加 `--no-shot` 只出 HTML
+- **安全兜底**：渲染完会再扫一遍真正要发出去的文案，命中硬违规词直接列出 SKU 与词
+
+> 🔴 **没有实拍图渲出来的图，绝对不能上架。** AI 合成图或空占位当成实物图属于虚假描述，比错别字严重得多。
+
 
 ---
 
@@ -138,6 +174,7 @@ python design_brief.py --input candidates.json --out design_brief.md
 | `github_trending.py` | 关键词映射表 `KEYWORD_MAP` + 垃圾过滤 `SPAM_PATTERNS` | 按你的品类调整 |
 | `selection_brief.py` | 依赖上面三者输出 | 自动汇总 |
 | `design_brief.py` | `design_rules.json` 的违规词 / 品类必拍项 | 广告法禁词表 + 平台规则 + 你自己的品类经验 |
+| `design_render.py` | `photos/<SKU名>.jpg` 实拍图 | 自己拍（严禁用网图/AI 图冒充） |
 
 ---
 
@@ -178,4 +215,4 @@ python design_brief.py --input candidates.json --out design_brief.md
 本工具仅用于选品研究与方法论沉淀，不构成任何投资建议；闲鱼交易请遵守平台规则与法律法规。
 
 ---
-由 WorkBuddy「闲鱼电商军团」专家出品 · 2026-11-10 建 · 2026-11-11 补 Issues 模板与使用说明 · 2026-11-11 增加「图玲珑」设计出稿工具链
+由 WorkBuddy「闲鱼电商军团」专家出品 · 2026-11-10 建 · 2026-11-11 补 Issues 模板与使用说明 · 2026-11-11 增加「图玲珑」设计出稿 + 出图工具链
