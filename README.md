@@ -17,6 +17,8 @@
 | `design_render.py` | 图玲珑 | **出图器**：读候选直接渲出 3 套 1080×1080 主图 + 1080 宽详情页长图，调本机 Edge 截图，无需手工改字 |
 | `content_plan.py` | 文种草 | **内容排期器**：四层关键词矩阵 + 8 条选题公式 → 选题池与 N 天排期 + 逐篇脚本要点；另带文案体检与违规自查 |
 | `service_reply.py` | 客如汇 | **客服应答器**：13 类意图判定（风险优先）+ 可直接发送的话术 + 议价三级阶梯 + 话术合规自查 |
+| `fulfill_plan.py` | 仓捷运 | **履约出单器**：48h 倒计时待发清单 + 拣货单 + 质检打包核对 + 库存警戒线 + 物流比价 + 8 类异常预案 |
+| `ops_plan.py` | 许达标 | **运营排期器**：月目标倒推日均曝光 + 漏斗卡点诊断 + 周计划 + SKU 保改砍 + 应季窗口 |
 
 ## 目录结构
 
@@ -34,11 +36,19 @@ xianyu-commerce-scripts/
 ├── content_rules.json             # 内容规则库：选题公式权重 / 关键词层 / 发布节奏 / 复盘判据
 ├── service_reply.py               # 客服话术生成与质检（客如汇）
 ├── service_rules.json             # 话术规则库：13 类意图 / 让步阶梯 / 售后判责 / 红线
+├── fulfill_plan.py                # 履约出单：待发 / 拣货 / 质检 / 库存 / 物流 / 异常（仓捷运）
+├── fulfill_rules.json             # 履约规则库：48h 口径 / 打包 8 步 / 承运商 / 8 类异常 / 时效违规词
+├── ops_plan.py                     # 运营排期与卡点诊断（许达标）
+├── plan_rules.json                 # 运营规则库：漏斗基准 / 卡点动作 / SKU 判定 / 14 个应季窗口 / 预警线
+├── 许达标SOP.md                    # 运营排期 SOP（倒推公式 / 达成度 / 三刀砍 / 每日节奏）
+├── 仓捷运SOP.md                    # 仓储履约 SOP（48h 口径 / 包装留证 / 警戒线 / 异常判责）
 ├── 客如汇SOP.md                    # 客服话术 SOP（意图优先级 / 阶梯 / 判责表 / 红线）
 ├── 文种草SOP.md                    # 内容种草 SOP（选题公式 / 四层关键词 / 复盘判据）
 ├── 图玲珑SOP.md                    # 视觉设计 SOP（主图 / 详情页 / 合规红线）
 ├── 数据录入说明.md                  # 甄选品周更 SOP
 ├── candidates.template.json       # 候选录入模板
+├── orders.template.json           # 履约录入模板（订单 + 库存）
+├── plan.template.json             # 运营计划录入模板（目标 + 漏斗现状 + SKU）
 ├── templates/
 │   └── 主图版式.html               # 1:1 主图版式（浏览器改字直接截图）
 ├── examples/                      # 真实跑出的范例输出（可直接对照）
@@ -48,6 +58,10 @@ xianyu-commerce-scripts/
 │   ├── design_brief.example.md    # design_brief 输出
 │   ├── content_plan.example.md    # content_plan 输出（2 SKU × 7 天）
 │   ├── service_reply.example.md   # service_reply 输出（8 条真实咨询判定）
+│   ├── orders.example.json        # fulfill_plan 输入示例（6 单含超时单 / 库存 5 SKU）
+│   ├── fulfill_plan.example.md    # fulfill_plan 输出（含超时单、超卖、偏远件）
+│   ├── plan.example.json          # ops_plan 输入示例（3 万目标 / 5 个 SKU）
+│   ├── ops_plan.example.md        # ops_plan 输出（缺口 2.89 倍 / 卡点成交率）
 │   └── design_render/             # design_render 真实产物（1 个 SKU × 4 张）
 │       ├── main_A.png             # 左图右文版式
 │       ├── main_B.png             # 大图压价格条
@@ -90,7 +104,13 @@ python design_render.py --input candidates.json --outdir renders
 # 6) 出内容排期（关键词矩阵 + 选题池 + 7 天排期）
 python content_plan.py --input candidates.json --days 7 --out content_plan.md
 
-# 7) 回一条买家咨询（判定 + 可发送话术 + 议价阶梯）
+# 7) 出今天的履约单（待发 / 拣货 / 质检 / 库存 / 物流 / 异常）
+python fulfill_plan.py --input orders.json --out fulfill_plan.md
+
+# 8) 出本周运营计划（目标倒推 + 卡点诊断 + 周计划 + SKU 处置）
+python ops_plan.py --input plan.json --out ops_plan.md
+
+# 9) 回一条买家咨询（判定 + 可发送话术 + 议价阶梯）
 python service_reply.py --msg "最低多少钱能出" --sku "二手 Switch OLED 掌机" --price 1799 --cost 1400
 ```
 
@@ -236,6 +256,76 @@ python service_reply.py --check "最低给你，绝对正品，加我微信聊"
 
 ---
 
+### 9. `fulfill_plan.py` — 履约出单与库存警戒（仓捷运）
+
+发货翻车从不在体力上，而在三个判断：哪单快超 48 小时、这个品类该核对什么、缺货了先停售还是先退款。这个脚本把三件事固定成一张表。
+
+```bash
+# 出今天的履约单（8 个板块一次出完）
+python fulfill_plan.py --input orders.json --out fulfill_plan.md
+
+# 单件物流试算（不计整单，只看这一件发哪家、多少钱）
+python fulfill_plan.py --sku "二手 Switch OLED 掌机" --weight 1.2 --amount 1799 --province 广东
+
+# 发货文案自查（时效承诺是重灾区）
+python fulfill_plan.py --check "现货秒发 当天发货 签收即视为验收无误"
+```
+
+**一次产出 8 个板块**：今日待发清单（48h 倒计时、超时单置顶）/ 拣货单 / 质检打包核对表 / 库存警戒线表 / 物流方案与比价 / 异常处理预案（8 类，含话术与 SLA）/ 「48 小时发货」执行细则 / 发货文案合规自查。
+
+- **48h 倒计时**：终点 = `paid_at + 48h`，剩余 ≤12h 标 🟠、≤24h 标 🟡、越过标 🔴 并把该单排到最前。承诺的是**发出**，不是到达。
+- **品类必查项复用**：质检核对表直接取 `design_rules.json` 的 `must_state`——掌机问 BAN 机与账号解绑，手机问 ID 锁与拆修，不另维护一份。
+- **可售天数**：`on_hand ÷ (sold_7d ÷ 7)`。没填 `sold_7d` 就不推算，标占位——假的警戒线比没有更危险。
+- **物流选型**：偏远 → 邮政 EMS；金额 ≥2000 或含易碎词 → 顺丰标快；≥5kg → 德邦；其余取最便宜的通达系/极兔。运费按首重 1kg + 续重计。
+- **超卖判据**：本批应发 > 在手库存，一命中就 🔴，先停售再沟通。
+
+| 概念 | 位置 | 改法 |
+|---|---|---|
+| 48h 口径与红线小时 | `fulfill_rules.json` 的 `sla` | 承诺改成 72h 就改这里，全篇跟着变 |
+| 打包步骤 | `fulfill_rules.json` 的 `packing_base` | 8 步，每步带「为什么」 |
+| 承运商与运费 | `fulfill_rules.json` 的 `logistics` | 按你当地网点报价改 |
+| 异常预案 | `fulfill_rules.json` 的 `exceptions` | 8 类：缺货/错发/破损/滞留/拒收/地址/到手刀/代发 |
+| 时效违规词 | `fulfill_rules.json` 的 `ship_claims` | 分 🔴 硬违规与 🟡 需改 |
+
+> ⚠️ **脚本不编造单号、地址、库存、轨迹**。运费是参考价（首重 1kg 口径），**别拿它去跟买家承诺运费或到达时间**。不带 `--input` 会用内置样例数据，并在首行标「样例数据，不可当真实履约单执行」。
+
+---
+
+### 10. `ops_plan.py` — 运营排期与卡点诊断（许达标）
+
+目标不拆解 = 只有情绪没有执行力；出单少就降价 = 修错了环节。这个脚本把「月目标 → 每天要多少曝光」算清楚，再把「出单少」定位到具体一环。
+
+```bash
+# 出本周运营计划（8 个板块一次出完）
+python ops_plan.py --input plan.json --out ops_plan.md
+
+# 快速算账：只给目标和现状，看缺口在哪
+python ops_plan.py --goal 30000 --aov 400 --exposure 8000 --ctr 1.8 --consult 5 --deal 12
+
+# 只查应季窗口（全年 14 个窗口 + 今天所处位置）
+python ops_plan.py --season
+```
+
+**一次产出 8 个板块**：目标倒推账 / 漏斗卡点诊断 / 周运营计划表 / 在售 SKU 处置 / 每日动作排期 / 应季窗口 / 预警线 / 复盘五问。
+
+- **目标倒推**：`月 GMV ÷ 客单价 ÷ 天数 = 日均单量` → 反推咨询 / 点击 / 曝光，同时给现状与需求，只有对比才有信息。
+- **一个反直觉的点**：转化率不变时，四环缺口倍率**必然相同**（乘法链条）。所以「哪环缺口最大」不构成结论，脚本会明确提示，并改用**达成度**（现状 ÷ 基准）定位卡点。
+- **卡点诊断**：点击率 ≥2% / 咨询率 ≥6% / 成交率 ≥15%（与 `dashboard.py` 同口径）。达成度最低的那环是本周唯一主攻。
+- **SKU 三刀**：3 天零成交换图 / 7 天零成交降价 5% / 14 天零成交下架换品；库存 0 先停售。
+- **应季窗口**：内置 14 个窗口，提前 7-10 天上架；并标注 **10.20-11.13 标品高价挂售期**，标品要避开。
+
+| 概念 | 位置 | 改法 |
+|---|---|---|
+| 漏斗基准（2%/6%/15%） | `plan_rules.json` 的 `funnel_benchmark` | 按你的品类调，别为了好看调低 |
+| 卡点动作与责任人 | `plan_rules.json` 的 `link_diagnosis` | 每条动作自带 owner，改这里 |
+| SKU 判定天数 | `plan_rules.json` 的 `sku_actions` | 3/7/14 天，按周转速度调 |
+| 应季窗口 | `plan_rules.json` 的 `season_windows` | 14 个窗口，可按你的品类增删 |
+| 预警线 | `plan_rules.json` 的 `alerts` | 7 条，含级别与动作 |
+
+> ⚠️ **脚本不含任何真实经营数据**。目标是你填的目标，基准是规则库的基准，两者不混算。缺哪个数字就标占位——估出来的曝光需求会让你做错决策。
+
+---
+
 ## 评分模型
 
 综合分 = 35%·需求热度 + 25%·竞争友好 + 25%·利润空间 + 15%·风险友好
@@ -260,6 +350,8 @@ python service_reply.py --check "最低给你，绝对正品，加我微信聊"
 | `design_render.py` | `photos/<SKU名>.jpg` 实拍图 | 自己拍（严禁用网图/AI 图冒充） |
 | `content_plan.py` | `content_rules.json` 的公式权重 / 关键词层 / 发布时段 | 你的经验 + 闲鱼搜索框下拉词（脚本不含搜索量） |
 | `service_reply.py` | `--cost` 真实进货价（议价底线由它推算） | 你的进货记录；没给成本就不报底价，脚本不会猜 |
+| `fulfill_plan.py` | `orders.json` 的 `paid_at` / `weight_kg` / `stock.sold_7d` | 闲鱼订单导出 + 你自己的称重与库存实盘；缺一项就少一个判据，脚本不会替你估 |
+| `ops_plan.py` | `plan.json` 的 `current`（曝光/点击率/咨询率/成交率/客单价） | 闲鱼「我的-数据中心」+ 生意参谋类工具；四项不全就倒推不出曝光缺口 |
 
 ---
 
