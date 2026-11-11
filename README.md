@@ -16,6 +16,7 @@
 | `design_brief.py` | 图玲珑 | 设计需求一键出稿：定价锚点 + 主图文案 + 拍摄清单 + 详情页 4 屏 + 短视频分镜 + 违规自查 |
 | `design_render.py` | 图玲珑 | **出图器**：读候选直接渲出 3 套 1080×1080 主图 + 1080 宽详情页长图，调本机 Edge 截图，无需手工改字 |
 | `content_plan.py` | 文种草 | **内容排期器**：四层关键词矩阵 + 8 条选题公式 → 选题池与 N 天排期 + 逐篇脚本要点；另带文案体检与违规自查 |
+| `service_reply.py` | 客如汇 | **客服应答器**：13 类意图判定（风险优先）+ 可直接发送的话术 + 议价三级阶梯 + 话术合规自查 |
 
 ## 目录结构
 
@@ -31,6 +32,9 @@ xianyu-commerce-scripts/
 ├── design_rules.json              # 设计规则库：违规词 / 品类必拍项 / 版式参数
 ├── content_plan.py                # 内容排期与选题出稿（文种草）
 ├── content_rules.json             # 内容规则库：选题公式权重 / 关键词层 / 发布节奏 / 复盘判据
+├── service_reply.py               # 客服话术生成与质检（客如汇）
+├── service_rules.json             # 话术规则库：13 类意图 / 让步阶梯 / 售后判责 / 红线
+├── 客如汇SOP.md                    # 客服话术 SOP（意图优先级 / 阶梯 / 判责表 / 红线）
 ├── 文种草SOP.md                    # 内容种草 SOP（选题公式 / 四层关键词 / 复盘判据）
 ├── 图玲珑SOP.md                    # 视觉设计 SOP（主图 / 详情页 / 合规红线）
 ├── 数据录入说明.md                  # 甄选品周更 SOP
@@ -43,6 +47,7 @@ xianyu-commerce-scripts/
 │   ├── brief.example.md           # selection_brief 输出
 │   ├── design_brief.example.md    # design_brief 输出
 │   ├── content_plan.example.md    # content_plan 输出（2 SKU × 7 天）
+│   ├── service_reply.example.md   # service_reply 输出（8 条真实咨询判定）
 │   └── design_render/             # design_render 真实产物（1 个 SKU × 4 张）
 │       ├── main_A.png             # 左图右文版式
 │       ├── main_B.png             # 大图压价格条
@@ -84,6 +89,9 @@ python design_render.py --input candidates.json --outdir renders
 
 # 6) 出内容排期（关键词矩阵 + 选题池 + 7 天排期）
 python content_plan.py --input candidates.json --days 7 --out content_plan.md
+
+# 7) 回一条买家咨询（判定 + 可发送话术 + 议价阶梯）
+python service_reply.py --msg "最低多少钱能出" --sku "二手 Switch OLED 掌机" --price 1799 --cost 1400
 ```
 
 ---
@@ -194,6 +202,40 @@ python content_plan.py --input candidates.json --days 7 --out content_plan.md
 
 ---
 
+### 8. `service_reply.py` — 客服应答与话术质检（客如汇）
+
+同一个问题被问一百遍，每次都重新组织语言；而「800 卖不卖」「先发货收到再给钱」这类没有关键词的话，回错方向比不回更糟。这个脚本先判意图，再给能直接发的话。
+
+```bash
+# 回一条咨询
+python service_reply.py --msg "最低多少钱能出" --sku "二手 Switch OLED 掌机" --price 1799 --cost 1400
+
+# 批量过今天的咨询
+python service_reply.py --input buyers.json --out replies.md
+
+# 生成《标准话术库》（售前/异议/售后/复购/红线全套）
+python service_reply.py --lib --sku "二手 Switch OLED 掌机" --price 1799 --cost 1400
+
+# 自己写的话术，发之前体检
+python service_reply.py --check "最低给你，绝对正品，加我微信聊"
+```
+
+- **13 类意图判定，风险优先**：站外交易(94) / 到手刀(95) / 代付拼单(93) / 假货质疑(92) / 威胁差评(96) 一律高于议价(65)。一句话同时命中风险与议价时，脚本会提示「还含议价」，但顺序不能反。
+- **数字出价识别**：关键词抓不到「800 卖不卖」，脚本单独抠数字，并区分「出价」与「便宜 100」这种让价额。
+- **议价三级阶梯**：可让空间 = 标价 − 底线，单次让步 = 一半，三次到线。底线 = `--cost × (1+8%)`，同时算出毛利率与「让到底线还剩多少」。
+- **话术自查**：自动扫它自己生成的话 + 检查字数（≤60 字）。扫描前会剥掉 `【】` 占位符——占位符不是要发出去的话。
+
+| 概念 | 位置 | 改法 |
+|---|---|---|
+| 13 类意图与关键词 | `service_rules.json` 的 `intents` | 加你自己的高频说法 |
+| 让步阶梯规则 | `service_rules.json` 的 `ladder` | 最低毛利率默认 8%，按你的品类改 |
+| 售后判责 | `service_rules.json` 的 `after_sales` | 五类情形，改判责口径 |
+| 违规词表 | `design_rules.json` 的 `ban_words` | 与图玲珑/文种草共用同一份 |
+
+> ⚠️ **`--cost` 必须是真实进货价**。没有成本就不报底价，脚本会留占位并提示——宁可不说，也不要编一个「大概能赚」的底线。所有 `【】` 由你对着实物填。
+
+---
+
 ## 评分模型
 
 综合分 = 35%·需求热度 + 25%·竞争友好 + 25%·利润空间 + 15%·风险友好
@@ -217,6 +259,7 @@ python content_plan.py --input candidates.json --days 7 --out content_plan.md
 | `design_brief.py` | `design_rules.json` 的违规词 / 品类必拍项 | 广告法禁词表 + 平台规则 + 你自己的品类经验 |
 | `design_render.py` | `photos/<SKU名>.jpg` 实拍图 | 自己拍（严禁用网图/AI 图冒充） |
 | `content_plan.py` | `content_rules.json` 的公式权重 / 关键词层 / 发布时段 | 你的经验 + 闲鱼搜索框下拉词（脚本不含搜索量） |
+| `service_reply.py` | `--cost` 真实进货价（议价底线由它推算） | 你的进货记录；没给成本就不报底价，脚本不会猜 |
 
 ---
 
@@ -257,4 +300,4 @@ python content_plan.py --input candidates.json --days 7 --out content_plan.md
 本工具仅用于选品研究与方法论沉淀，不构成任何投资建议；闲鱼交易请遵守平台规则与法律法规。
 
 ---
-由 WorkBuddy「闲鱼电商军团」专家出品 · 2026-11-10 建 · 2026-11-11 补 Issues 模板与使用说明 · 2026-11-11 增加「图玲珑」设计出稿 + 出图工具链 · 2026-11-11 增加「文种草」内容排期工具链
+由 WorkBuddy「闲鱼电商军团」专家出品 · 2026-11-10 建 · 2026-11-11 补 Issues 模板与使用说明 · 2026-11-11 增加「图玲珑」设计出稿 + 出图工具链 · 2026-11-11 增加「文种草」内容排期工具链 · 2026-11-11 增加「客如汇」客服话术工具链
