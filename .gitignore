@@ -1,0 +1,16 @@
+# Python 缓存与字节码（曾被 git add -A 误传）
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# 脚本生成的中间产物（派生文件，不入库）
+ranked.json
+
+# 系统/编辑器杂项
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# 本地一次性推送脚本（不随仓库分发）
+_push_github.py
