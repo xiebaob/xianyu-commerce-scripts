@@ -1,0 +1,54 @@
+{
+  "month": "2026-11",
+  "days": 30,
+  "goal": {
+    "gmv": 30000,
+    "profit": 6000,
+    "orders": null
+  },
+  "current": {
+    "aov": 400,
+    "exposure_day": 8000,
+    "ctr": 1.8,
+    "consult_rate": 5.0,
+    "deal_rate": 12.0
+  },
+  "skus": [
+    {
+      "sku": "二手 Switch OLED 掌机 白色",
+      "days_live": 12,
+      "sold_7d": 3,
+      "stock": 3
+    },
+    {
+      "sku": "iPhone 13 128G 午夜色",
+      "days_live": 6,
+      "sold_7d": 0,
+      "stock": 2
+    },
+    {
+      "sku": "罗技 MX Master 3S 鼠标",
+      "days_live": 18,
+      "sold_7d": 0,
+      "stock": 2
+    },
+    {
+      "sku": "小米空气炸锅 4L",
+      "days_live": 2,
+      "sold_7d": 0,
+      "stock": 0
+    },
+    {
+      "sku": "二手 Kindle Paperwhite 5 8G",
+      "days_live": 21,
+      "sold_7d": 0,
+      "stock": 2
+    }
+  ],
+  "metrics": {
+    "zero_sales_days": 0,
+    "bad_review_rate": 1.2,
+    "late_ship": 1,
+    "low_stock": 1
+  }
+}
