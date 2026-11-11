@@ -1,110 +1,135 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-github_trending.py — GitHub Trending 抓取保育（甄选品·技术消费趋势信号源）
+github_trending.py — 技术消费趋势信号采集（甄选品·趋势信号源）
 
-用途：每日扫描 GitHub Trending，提取"技术消费趋势"信号，映射到闲鱼选品机会
-      （如 AI Agent 热 → 二手迷你主机/GPU/软路由；Home Assistant 热 → 智能家居二手配件）。
+数据源改为 GitHub 官方 Search API。
+原因：/trending 网页已对未登录请求返回登录跳转，Actions 运行器（数据中心 IP）
+      抓不到真实榜单，旧抓取方案会产出垃圾字符串。
+思路：用「最近 N 天新建、按 star 排序」近似 Trending 榜单。
 
 用法：
-    python3 github_trending.py                 # 在线抓取当日榜（需联网）
-    python3 github_trending.py --since weekly  # 周榜
-    python3 github_trending.py --html file.html# 读取本地 HTML（离线/沙箱友好）
-    python3 github_trending.py --json out.json # 输出 JSON
+    python3 github_trending.py                    # 近 7 天榜（daily）
+    python3 github_trending.py --since weekly     # 近 30 天
+    python3 github_trending.py --since monthly    # 近 90 天
+    python3 github_trending.py --json out.json    # 额外导出 JSON
 
-依赖：仅标准库（urllib + 正则）。无外部包。
-说明：Trending 页面结构可能随 GitHub 改版变化；解析失败时回退到"读本地HTML"或"手动粘贴"。
+鉴权：优先读环境变量 GITHUB_TOKEN（GitHub Actions 内置），无 token 时走匿名限额（60 次/小时）。
+依赖：仅标准库。
 """
 
 import argparse
 import json
-import re
+import os
 import sys
+import urllib.parse
 import urllib.request
-from datetime import date
+from datetime import date, timedelta
 
-TRENDING_URL = "https://github.com/trending"
-UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-      "(KHTML, like Gecko) Chrome/120.0 Safari/537.36")
+API = "https://api.github.com/search/repositories"
+UA = "xianyu-commerce-scripts/2.0"
+WINDOW_DAYS = {"daily": 7, "weekly": 30, "monthly": 90}
+PER_PAGE = 25
+MIN_STARS = 30
 
-
-def fetch_html(url: str) -> str:
-    req = urllib.request.Request(url, headers={"User-Agent": UA})
-    with urllib.request.urlopen(req, timeout=20) as r:
-        return r.read().decode("utf-8", errors="ignore")
-
-
-def parse_trending(html: str) -> list:
-    """粗粒度解析 Trending 仓库块（repo, lang, desc, stars, today）。"""
-    repos = []
-    # 每个仓库块以 <h2 class="h3 lh-condensed"> 开头
-    blocks = re.findall(r'<h2[^>]*>.*?</h2>(.*?)(?=<h2[^>]*>|<footer|</main>)',
-                        html, re.DOTALL)
-    for b in blocks:
-        repo_m = re.search(r'href="(/[^"]+)"', b)
-        desc_m = re.search(r'<p[^>]*>(.*?)</p>', b, re.DOTALL)
-        lang_m = re.search(r'itemprop="programmingLanguage">([^<]+)<', b)
-        star_m = re.search(r'([\d,]+)\s*stars', b)
-        today_m = re.search(r'([\d,]+)\s*stars today', b)
-        if not repo_m:
-            continue
-        repos.append({
-            "repo": repo_m.group(1).strip("/"),
-            "language": lang_m.group(1).strip() if lang_m else "",
-            "description": re.sub(r'\s+', ' ', desc_m.group(1)).strip()
-                            if desc_m else "",
-            "stars": int(star_m.group(1).replace(",", "")) if star_m else 0,
-            "stars_today": int(today_m.group(1).replace(",", "")) if today_m else 0,
-        })
-    return repos
+KEYWORD_MAP = {
+    "二手迷你主机/准系统": ["agent", "llm", "local", "mcp", "home-assistant", "rag"],
+    "二手显卡/GPU": ["llm", "inference", "gpu", "diffusion", "model"],
+    "智能家居二手配件": ["home-assistant", "homeassistant", "zigbee", "iot", "smart"],
+    "开发板/传感器套件": ["esp32", "arduino", "raspberry", "sensor", "embedded", "robot"],
+    "软路由/高端路由器": ["router", "network", "proxy", "vpn", "dns"],
+}
 
 
-def tag_signal(repos: list) -> list:
-    """把技术趋势映射为闲鱼选品信号（关键词粗匹配）。"""
-    keyword_map = {
-        "二手迷你主机/准系统": ["agent", "llm", "local", "mcp", "home-assistant", "rag"],
-        "二手显卡/GPU": ["llm", "inference", "gpu", "diffusion", "model"],
-        "智能家居二手配件": ["home-assistant", "homeassistant", "zigbee", "iot", "smart"],
-        "开发板/传感器套件": ["esp32", "arduino", "raspberry", "sensor", "embedded", "robot"],
-        "软路由/高端路由器": ["router", "network", "proxy", "vpn", "dns"],
+def fetch_repos(since, token):
+    days = WINDOW_DAYS.get(since, 7)
+    since_date = (date.today() - timedelta(days=days)).isoformat()
+    q = "created:>%s stars:>%d" % (since_date, MIN_STARS)
+    params = urllib.parse.urlencode({
+        "q": q, "sort": "stars", "order": "desc", "per_page": PER_PAGE,
+    })
+    headers = {
+        "Accept": "application/vnd.github+json",
+        "User-Agent": UA,
     }
-    for r in repos:
-        text = (r["repo"] + " " + r["description"]).lower()
-        hits = [k for k, kws in keyword_map.items() if any(kw in text for kw in kws)]
-        r["xianyu_signal"] = hits
-    return repos
+    if token:
+        headers["Authorization"] = "Bearer %s" % token
+    req = urllib.request.Request("%s?%s" % (API, params), headers=headers)
+    with urllib.request.urlopen(req, timeout=25) as r:
+        data = json.loads(r.read().decode("utf-8", errors="ignore"))
+    return data.get("items", [])
+
+
+def tag_signal(items):
+    out = []
+    for it in items:
+        text = ((it.get("full_name") or "") + " " + (it.get("description") or "")).lower()
+        hits = [k for k, kws in KEYWORD_MAP.items() if any(kw in text for kw in kws)]
+        out.append({
+            "repo": it.get("full_name", ""),
+            "language": it.get("language") or "",
+            "description": (it.get("description") or "").strip(),
+            "stars": it.get("stargazers_count", 0),
+            "created": (it.get("created_at") or "")[:10],
+            "xianyu_signal": hits,
+        })
+    return out
 
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--since", default="daily", choices=["daily", "weekly", "monthly"])
-    ap.add_argument("--html", help="本地 trending HTML 路径（离线）")
+    ap.add_argument("--since", default="daily", choices=list(WINDOW_DAYS))
     ap.add_argument("--json", help="输出 JSON 路径")
+    ap.add_argument("--token", help="GitHub token（默认读环境变量 GITHUB_TOKEN）")
     args = ap.parse_args()
 
+    token = args.token or os.environ.get("GITHUB_TOKEN")
     try:
-        if args.html:
-            html = open(args.html, encoding="utf-8", errors="ignore").read()
-        else:
-            html = fetch_html(f"{TRENDING_URL}?since={args.since}")
+        items = fetch_repos(args.since, token)
     except Exception as e:
-        print(f"[WARN] 在线抓取失败：{e}")
-        print("[INFO] 可改用 --html 传入本地保存的 github.com/trending 页面，或手动粘贴。")
+        print("[WARN] GitHub Search API 请求失败：%s" % e)
+        print("[INFO] 未登录限额 60 次/小时；请设置 GITHUB_TOKEN 环境变量提升额度。")
         sys.exit(2)
 
-    repos = tag_signal(parse_trending(html))
-    out = {"date": str(date.today()), "since": args.since, "repos": repos}
-    if args.json:
-        json.dump(out, open(args.json, "w", encoding="utf-8"),
-                  ensure_ascii=False, indent=2)
-        print(f"[OK] 已写出 {len(repos)} 个仓库到 {args.json}")
+    repos = tag_signal(items)
+    days = WINDOW_DAYS[args.since]
+    since_date = (date.today() - timedelta(days=days)).isoformat()
+
+    # 页首写清数据来源与口径，便于回溯（stdout 会被重定向进 trends/*.md）
+    print("# GitHub 技术趋势信号 · %s（近 %d 天新建、按 star 排序）" % (date.today(), days))
+    print("")
+    print("> 数据源：GitHub 官方 Search API　q=`created:>%s stars:>%d`" % (since_date, MIN_STARS))
+    print("> 口径：以「近期新建的热门仓库」近似 Trending，非官方 Trending 页；仅作趋势参考。")
+    print("")
+
+    sig_count = {}
+    for r in repos:
+        for s in r["xianyu_signal"]:
+            sig_count[s] = sig_count.get(s, 0) + 1
+
+    print("## 一、闲鱼品类信号命中")
+    if sig_count:
+        for s, n in sorted(sig_count.items(), key=lambda x: -x[1]):
+            print("- %s：%d 个仓库" % (s, n))
     else:
-        for r in repos[:25]:
-            sig = ",".join(r["xianyu_signal"]) or "-"
-            print(f"{r['repo']:<45} ★{r['stars']:<8} +{r['stars_today']:<5} "
-                  f"[{r['language']}] 信号:{sig}")
-            if r["description"]:
-                print(f"    {r['description'][:80]}")
+        print("- 本窗口内无仓库命中选品关键词")
+    print("")
+
+    print("## 二、仓库明细（前 %d）" % len(repos))
+    for r in repos:
+        sig = ",".join(r["xianyu_signal"]) or "-"
+        print("- %s ★%d [%s] 信号:%s" % (r["repo"], r["stars"], r["language"], sig))
+        if r["description"]:
+            print("    %s" % r["description"][:100])
+
+    if args.json:
+        out = {
+            "date": str(date.today()), "since": args.since,
+            "window_days": days, "repo_count": len(repos), "repos": repos,
+        }
+        with open(args.json, "w", encoding="utf-8") as f:
+            json.dump(out, f, ensure_ascii=False, indent=2)
+        print("[OK] 已写出 %d 个仓库 → %s" % (len(repos), args.json), file=sys.stderr)
 
 
 if __name__ == "__main__":
