@@ -88,8 +88,9 @@ def zh_clean(s):
 
 
 def role_name(key):
+    """只输出中文角色名——报告是给人看的，英文 agent id 是内部实现细节。"""
     r = R["roles"].get(key)
-    return "%s（%s）" % (r["name"], key) if r else key
+    return r["name"] if r else key
 
 
 def dday(n):
@@ -627,8 +628,18 @@ def main():
 
     sample = False
     if args.input:
+        if not os.path.exists(args.input):
+            print("错误：找不到输入文件 %s" % args.input)
+            print("      模板：plan.template.json　示例：examples/plan.example.json")
+            return 2
         with open(args.input, "r", encoding="utf-8") as f:
-            data = json.load(f)
+            try:
+                data = json.load(f)
+            except json.JSONDecodeError as e:
+                print("错误：%s 不是合法 JSON（第 %d 行第 %d 列：%s）"
+                      % (args.input, e.lineno, e.colno, e.msg))
+                print("      常见原因：中文引号、末尾多逗号、缺右括号。")
+                return 2
     elif args.goal or args.orders:
         data = {
             "month": NOW.strftime("%Y-%m"),
