@@ -16,12 +16,18 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - run: pip install requests
       - name: 跑评分器 + 生成周简报
         run: |
           mkdir -p briefs
-          python selection_scorer.py --out ranked.json
-          python selection_brief.py --out "briefs/$(date +%Y-%m-%d).md"
+          if [ -f candidates.json ]; then
+            echo "使用真实候选 candidates.json"
+            python selection_scorer.py candidates.json --out ranked.json
+            python selection_brief.py --input candidates.json --out "briefs/$(date +%Y-%m-%d).md"
+          else
+            echo "::warning::未找到 candidates.json，回落到内置样例（仅演示，非真实结论）"
+            python selection_scorer.py --out ranked.json
+            python selection_brief.py --out "briefs/$(date +%Y-%m-%d).md"
+          fi
       - name: 提交本周简报
         run: |
           git config user.name "github-actions[bot]"
