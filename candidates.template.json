@@ -1,0 +1,56 @@
+[
+  {
+    "sku": "示例-请替换：二手迷你主机/准系统",
+    "cat": "本地大模型算力",
+    "signal": "GH",
+    "demand": 0,
+    "comp_favor": 0,
+    "profit": 0,
+    "risk_favor": 0,
+    "note": "写清为什么给这几个分（一句话依据）",
+    "evidence": {
+      "keyword": "闲鱼搜索关键词，如 NUC 准系统",
+      "listing_count": 0,
+      "price_low": 0,
+      "price_high": 0,
+      "want_count_7d": 0,
+      "risk_notes": "成色/售后/假货风险备注"
+    }
+  },
+  {
+    "sku": "示例-请替换：智能家居二手配件",
+    "cat": "Home Assistant生态",
+    "signal": "GH",
+    "demand": 0,
+    "comp_favor": 0,
+    "profit": 0,
+    "risk_favor": 0,
+    "note": "",
+    "evidence": {
+      "keyword": "",
+      "listing_count": 0,
+      "price_low": 0,
+      "price_high": 0,
+      "want_count_7d": 0,
+      "risk_notes": ""
+    }
+  },
+  {
+    "sku": "示例-请替换：报告常青品类（如 DDR4/SSD）",
+    "cat": "电脑硬件",
+    "signal": "RPT",
+    "demand": 0,
+    "comp_favor": 0,
+    "profit": 0,
+    "risk_favor": 0,
+    "note": "",
+    "evidence": {
+      "keyword": "",
+      "listing_count": 0,
+      "price_low": 0,
+      "price_high": 0,
+      "want_count_7d": 0,
+      "risk_notes": ""
+    }
+  }
+]
