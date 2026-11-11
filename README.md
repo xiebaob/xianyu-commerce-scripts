@@ -19,6 +19,7 @@
 | `service_reply.py` | 客如汇 | **客服应答器**：13 类意图判定（风险优先）+ 可直接发送的话术 + 议价三级阶梯 + 话术合规自查 |
 | `fulfill_plan.py` | 仓捷运 | **履约出单器**：48h 倒计时待发清单 + 拣货单 + 质检打包核对 + 库存警戒线 + 物流比价 + 8 类异常预案 |
 | `ops_plan.py` | 许达标 | **运营排期器**：月目标倒推日均曝光 + 漏斗卡点诊断 + 周计划 + SKU 保改砍 + 应季窗口 |
+| `sourcing_plan.py` | 拾货源 | **进货决策器**：1688 拿货净利倒推 + 六个断层 + 一件代发vs备货资金占用 + 组合打包 + 供应商必问 |
 
 ## 目录结构
 
@@ -38,6 +39,9 @@ xianyu-commerce-scripts/
 ├── service_rules.json             # 话术规则库：13 类意图 / 让步阶梯 / 售后判责 / 红线
 ├── fulfill_plan.py                # 履约出单：待发 / 拣货 / 质检 / 库存 / 物流 / 异常（仓捷运）
 ├── fulfill_rules.json             # 履约规则库：48h 口径 / 打包 8 步 / 承运商 / 8 类异常 / 时效违规词
+├── sourcing_plan.py                # 1688 进货决策与净利倒推（拾货源）
+├── sourcing_rules.json            # 货源规则库：落地成本 / 退货损失 / 六个断层 / 供应商必问 / 品类库 / 组合策略
+├── 拾货源SOP.md                    # 货源 SOP（找货四问 / 断层清单 / 净利公式 / 组合策略 / 自检清单）
 ├── ops_plan.py                     # 运营排期与卡点诊断（许达标）
 ├── plan_rules.json                 # 运营规则库：漏斗基准 / 卡点动作 / SKU 判定 / 14 个应季窗口 / 预警线
 ├── 许达标SOP.md                    # 运营排期 SOP（倒推公式 / 达成度 / 三刀砍 / 每日节奏）
@@ -49,6 +53,7 @@ xianyu-commerce-scripts/
 ├── candidates.template.json       # 候选录入模板
 ├── orders.template.json           # 履约录入模板（订单 + 库存）
 ├── plan.template.json             # 运营计划录入模板（目标 + 漏斗现状 + SKU）
+├── sourcing.template.json          # 货源录入模板（1688 拿货价 / 退货率 / 起批量 / 组合装）
 ├── templates/
 │   └── 主图版式.html               # 1:1 主图版式（浏览器改字直接截图）
 ├── examples/                      # 真实跑出的范例输出（可直接对照）
@@ -62,6 +67,8 @@ xianyu-commerce-scripts/
 │   ├── fulfill_plan.example.md    # fulfill_plan 输出（含超时单、超卖、偏远件）
 │   ├── plan.example.json          # ops_plan 输入示例（3 万目标 / 5 个 SKU）
 │   ├── ops_plan.example.md        # ops_plan 输出（缺口 2.89 倍 / 卡点成交率）
+│   ├── sourcing.example.json       # sourcing_plan 输入（7 条货源含 3C 无证、起批量超标、缺退货率）
+│   ├── sourcing_plan.example.md    # sourcing_plan 输出（9 板块，含否决与组合装）
 │   └── design_render/             # design_render 真实产物（1 个 SKU × 4 张）
 │       ├── main_A.png             # 左图右文版式
 │       ├── main_B.png             # 大图压价格条
@@ -109,6 +116,9 @@ python fulfill_plan.py --input orders.json --out fulfill_plan.md
 
 # 8) 出本周运营计划（目标倒推 + 卡点诊断 + 周计划 + SKU 处置）
 python ops_plan.py --input plan.json --out ops_plan.md
+
+# 出进货决策单（1688 货源 → 挂价 → 净利 → 下单量）
+python sourcing_plan.py --input sourcing.json --out sourcing_plan.md
 
 # 9) 回一条买家咨询（判定 + 可发送话术 + 议价阶梯）
 python service_reply.py --msg "最低多少钱能出" --sku "二手 Switch OLED 掌机" --price 1799 --cost 1400
@@ -299,6 +309,9 @@ python fulfill_plan.py --check "现货秒发 当天发货 签收即视为验收�
 # 出本周运营计划（8 个板块一次出完）
 python ops_plan.py --input plan.json --out ops_plan.md
 
+# 出进货决策单（1688 货源 → 挂价 → 净利 → 下单量）
+python sourcing_plan.py --input sourcing.json --out sourcing_plan.md
+
 # 快速算账：只给目标和现状，看缺口在哪
 python ops_plan.py --goal 30000 --aov 400 --exposure 8000 --ctr 1.8 --consult 5 --deal 12
 
@@ -323,6 +336,46 @@ python ops_plan.py --season
 | 预警线 | `plan_rules.json` 的 `alerts` | 7 条，含级别与动作 |
 
 > ⚠️ **脚本不含任何真实经营数据**。目标是你填的目标，基准是规则库的基准，两者不混算。缺哪个数字就标占位——估出来的曝光需求会让你做错决策。
+
+---
+
+### 11. `sourcing_plan.py` — 1688 进货决策与净利倒推（拾货源）
+
+货源问题一半不是「找不到货」，是「找到了但用不了」。这个脚本把 1688 拿货算成「闲鱼能不能卖、能赚多少、会不会翻车」。
+
+```bash
+# 出进货决策单（9 个板块一次出完）
+python sourcing_plan.py --input sourcing.json --out sourcing_plan.md
+
+# 单条快算：倒推最低可行挂价
+python sourcing_plan.py --cost 12.8 --ship-fee 5 --buyer-fee 8 --return-rate 6 --name "桌面收纳盒"
+
+# 货源文案自查（货源侧特有的违禁词）
+python sourcing_plan.py --check "你的标题和详情文案"
+
+# 查品类库 / 组合策略 / 六个断层
+python sourcing_plan.py --categories
+python sourcing_plan.py --bundles
+python sourcing_plan.py --gaps
+```
+
+- **净利公式**：售价 − 拿货价 − 1688运费 − 闲鱼运费 − **期望退货损失**。少算退货损失是这条线上最常见的亏法。
+- **反推最低挂价**：`售价 = (拿货价 + 两段运费 + 人工成本) ÷ (1 − 退货率×折价率 − 目标净利率)`。
+- **判定线**：净毛利率 ≥25% 做；18-25% 只许试单 10 单；<18% 不做。
+- **一票否决**：起批量 >5 且不支持一件代发 / 发货时效 >4 天（破 48 小时承诺）/ 3C 认证目录无证 / 最低挂价超品类价位带上限。
+- **六个断层**：发货时效 / 退货双向 / 样品与批量 / 图片版权 / 发票与售后 / 卖家身份——逐条对，别跳过。
+- **组合打包**：单品是红海，套装不是。内置 6 套场景化组合，客单价提升 2.5-3.5 倍。
+
+| 概念 | 位置 | 改法 |
+|---|---|---|
+| 落地成本与退货模型 | `sourcing_rules.json` 的 `cost_model` | 按你的实际运费、退货率改 |
+| 判定阈值 | `sourcing_rules.json` 的 `decision` | 25% / 18% / 起批量 5 / 时效 4 天 |
+| 六个断层 | `sourcing_rules.json` 的 `platform_gaps` | 按你踩过的坑补 |
+| 不碰清单 | `sourcing_rules.json` 的 `redlines` | 红线只增不减 |
+| 品类库 | `sourcing_rules.json` 的 `categories` | 11 个全新小件品类，可增删 |
+| 组合策略 | `sourcing_rules.json` 的 `bundle_strategies` | 按你实际能凑够的件改 |
+
+> ⚠️ **3C 认证是法律红线，不是质量建议**。充电器、移动电源、插排、取暖器、小风扇、台灯属国家强制认证目录，没有证书就是违法销售。脚本会一票否决，不给「大家都这么卖」的余地。
 
 ---
 
@@ -352,6 +405,7 @@ python ops_plan.py --season
 | `service_reply.py` | `--cost` 真实进货价（议价底线由它推算） | 你的进货记录；没给成本就不报底价，脚本不会猜 |
 | `fulfill_plan.py` | `orders.json` 的 `paid_at` / `weight_kg` / `stock.sold_7d` | 闲鱼订单导出 + 你自己的称重与库存实盘；缺一项就少一个判据，脚本不会替你估 |
 | `ops_plan.py` | `plan.json` 的 `current`（曝光/点击率/咨询率/成交率/客单价） | 闲鱼「我的-数据中心」+ 生意参谋类工具；四项不全就倒推不出曝光缺口 |
+| `sourcing_plan.py` | `sourcing.json` 的 `cost`（1688 拿货价）/ `return_rate`（退货率）/ `moq` / `lead_days` | 1688 商品页 + 供应商聊天记录；缺拿货价或退货率，该条不参与算账 |
 
 ---
 
