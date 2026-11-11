@@ -41,14 +41,25 @@ def load_rules():
 
 
 def pick_category(*texts):
-    """按关键词命中选品类规则，命中不到回落「通用」。"""
+    """按关键词命中选品类规则，命中不到回落「通用」。
+
+    判定用「最长命中词优先、同长比命中数」，不用「字典里谁排前面谁赢」。
+    否则「小米空气炸锅」会因为泛品牌词「小米」被判成二手手机——
+    品牌词和品名词同时命中时，品名词才是真品类。
+    """
     blob = " ".join(t for t in texts if t).lower()
+    best_name, best_rule, best_key = None, None, None
     for name, rule in RULES["category_rules"].items():
         if name == "通用":
             continue
-        for kw in rule.get("match", []):
-            if kw.lower() in blob:
-                return name, rule
+        hits = [kw for kw in rule.get("match", []) if kw.lower() in blob]
+        if not hits:
+            continue
+        key = (max(len(h) for h in hits), len(hits))
+        if best_key is None or key > best_key:
+            best_name, best_rule, best_key = name, rule, key
+    if best_name:
+        return best_name, best_rule
     return "通用", RULES["category_rules"]["通用"]
 
 
