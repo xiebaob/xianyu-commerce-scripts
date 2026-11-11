@@ -15,6 +15,7 @@
 | `dashboard.py` | 数明察 | 经营漏斗看板 + 周报，对齐 SOP 标准（点击率 ≥2% / 咨询率 ≥6% / 成交率 ≥15%）自动定位瓶颈 |
 | `design_brief.py` | 图玲珑 | 设计需求一键出稿：定价锚点 + 主图文案 + 拍摄清单 + 详情页 4 屏 + 短视频分镜 + 违规自查 |
 | `design_render.py` | 图玲珑 | **出图器**：读候选直接渲出 3 套 1080×1080 主图 + 1080 宽详情页长图，调本机 Edge 截图，无需手工改字 |
+| `content_plan.py` | 文种草 | **内容排期器**：四层关键词矩阵 + 8 条选题公式 → 选题池与 N 天排期 + 逐篇脚本要点；另带文案体检与违规自查 |
 
 ## 目录结构
 
@@ -28,6 +29,9 @@ xianyu-commerce-scripts/
 ├── design_brief.py                # 设计需求出稿（图玲珑）
 ├── design_render.py               # 出图器：主图 ×3 + 详情页长图（图玲珑）
 ├── design_rules.json              # 设计规则库：违规词 / 品类必拍项 / 版式参数
+├── content_plan.py                # 内容排期与选题出稿（文种草）
+├── content_rules.json             # 内容规则库：选题公式权重 / 关键词层 / 发布节奏 / 复盘判据
+├── 文种草SOP.md                    # 内容种草 SOP（选题公式 / 四层关键词 / 复盘判据）
 ├── 图玲珑SOP.md                    # 视觉设计 SOP（主图 / 详情页 / 合规红线）
 ├── 数据录入说明.md                  # 甄选品周更 SOP
 ├── candidates.template.json       # 候选录入模板
@@ -38,6 +42,7 @@ xianyu-commerce-scripts/
 │   ├── weekly_report.example.md   # dashboard 输出
 │   ├── brief.example.md           # selection_brief 输出
 │   ├── design_brief.example.md    # design_brief 输出
+│   ├── content_plan.example.md    # content_plan 输出（2 SKU × 7 天）
 │   └── design_render/             # design_render 真实产物（1 个 SKU × 4 张）
 │       ├── main_A.png             # 左图右文版式
 │       ├── main_B.png             # 大图压价格条
@@ -76,6 +81,9 @@ python design_brief.py --input candidates.json --out design_brief.md
 
 # 5) 直接出图（需本机 Edge/Chrome；没装可加 --no-shot 只出 HTML）
 python design_render.py --input candidates.json --outdir renders
+
+# 6) 出内容排期（关键词矩阵 + 选题池 + 7 天排期）
+python content_plan.py --input candidates.json --days 7 --out content_plan.md
 ```
 
 ---
@@ -153,6 +161,39 @@ python design_render.py --input candidates.json --outdir renders
 
 ---
 
+### 7. `content_plan.py` — 内容排期与选题出稿（文种草）
+解决「今天发什么」和「关键词怎么铺」。
+
+- **输入**：`--input candidates.json` 或单件 `--sku ... --price ... --new-price ... --cond ...`
+- **输出**：四层关键词矩阵 + 按适配度排序的选题池 + N 天排期表 + 逐篇结构与开头第一句
+  ```bash
+  python content_plan.py --input candidates.json --days 7 --out content_plan.md
+  ```
+- **8 条选题公式**（权重在 `content_rules.json`，可自己调）：
+
+  | ID | 公式 | 标题例 | 权重 |
+  |---|---|---|---|
+  | F1 | 价格锚点型 | ¥1,799 收的 Switch OLED，比新机省 ¥700 | 3 |
+  | F2 | 避坑型 | 买二手 Switch OLED 前必看 4 个坑 | 3 |
+  | F3 | 对比型 | iPhone 13 vs iPhone 14，差 300 块差在哪 | 2 |
+  | F4 | 场景型 | 用了 11 天，说点实话 | 2 |
+  | F5 | 验机干货型 | 验机 4 步，附我的检查表 | 2 |
+  | F6 | 反向劝退型 | 这价位别买，除非你满足 2 个条件 | 2 |
+  | F7 | 应季/节点型 | 11 月买最划算，因为… | 1 |
+  | F8 | 拆解/细节型 | 细节实拍｜电池健康怎么看 | 1 |
+
+- **文案体检**（发布前打分）：
+  ```bash
+  python content_plan.py --review --title "标题" --body "正文"
+  ```
+  7 项共 100 分：标题长度 / 含关键词 / 含数字 / 开头钩子 / 瑕疵披露 / 场景具体性 / 站内钩子。
+  **60 分以下别发**；出现站外引流直接 0 分。
+- **违规自查**：`python content_plan.py --check "待发布文案"`（与 `design_brief.py --check` 共用 `design_rules.json` 词库）
+
+> ⚠️ **脚本不含任何搜索量/销量/竞品数据**。关键词必须回闲鱼搜索框核对下拉词；标题里的 `【】` 是真信息占位；「第 k 个我踩过」「我盯了 N 天」这类第一人称经历必须真实——编一次评论区就拆穿。
+
+---
+
 ## 评分模型
 
 综合分 = 35%·需求热度 + 25%·竞争友好 + 25%·利润空间 + 15%·风险友好
@@ -175,6 +216,7 @@ python design_render.py --input candidates.json --outdir renders
 | `selection_brief.py` | 依赖上面三者输出 | 自动汇总 |
 | `design_brief.py` | `design_rules.json` 的违规词 / 品类必拍项 | 广告法禁词表 + 平台规则 + 你自己的品类经验 |
 | `design_render.py` | `photos/<SKU名>.jpg` 实拍图 | 自己拍（严禁用网图/AI 图冒充） |
+| `content_plan.py` | `content_rules.json` 的公式权重 / 关键词层 / 发布时段 | 你的经验 + 闲鱼搜索框下拉词（脚本不含搜索量） |
 
 ---
 
@@ -215,4 +257,4 @@ python design_render.py --input candidates.json --outdir renders
 本工具仅用于选品研究与方法论沉淀，不构成任何投资建议；闲鱼交易请遵守平台规则与法律法规。
 
 ---
-由 WorkBuddy「闲鱼电商军团」专家出品 · 2026-11-10 建 · 2026-11-11 补 Issues 模板与使用说明 · 2026-11-11 增加「图玲珑」设计出稿 + 出图工具链
+由 WorkBuddy「闲鱼电商军团」专家出品 · 2026-11-10 建 · 2026-11-11 补 Issues 模板与使用说明 · 2026-11-11 增加「图玲珑」设计出稿 + 出图工具链 · 2026-11-11 增加「文种草」内容排期工具链
